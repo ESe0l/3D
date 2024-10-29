@@ -8,6 +8,9 @@ public class PlayerController : MonoBehaviour
 {
     [Header("Movement")]
     public float moveSpeed;
+    public bool isRunning;
+    public float dashSpeed;
+    public Rigidbody rb;
     public float jumpPower;
     private Vector2 curMovementInput;
     public LayerMask GroundLayerMask;
@@ -21,6 +24,7 @@ public class PlayerController : MonoBehaviour
     private Vector2 mouseDelta;
     
     private Rigidbody _rigidbody;
+    private UICondition uiCondition;
 
     private void Awake()
     {
@@ -31,6 +35,7 @@ public class PlayerController : MonoBehaviour
     void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;
+        uiCondition = GetComponent<UICondition>();
     }
 
     // Update is called once per frame
@@ -50,7 +55,9 @@ public class PlayerController : MonoBehaviour
         dir *= moveSpeed;
         dir.y = _rigidbody.velocity.y;
         
-        _rigidbody.velocity = dir;
+         _rigidbody.velocity = dir;
+         
+         isRunning = curMovementInput.magnitude > 0 && uiCondition.stamina.curValue > 0;
     }
 
     void CameraLook()
@@ -71,6 +78,20 @@ public class PlayerController : MonoBehaviour
         else if (context.phase == InputActionPhase.Canceled)
         {
             curMovementInput = Vector2.zero;
+        }
+    }
+
+    public void OnDash(InputAction.CallbackContext context)
+    {
+        if (context.phase == InputActionPhase.Performed && isRunning && uiCondition.stamina.curValue > 5) // Ensure enough stamina for dash
+        {
+            Vector3 dir = transform.forward * curMovementInput.y + transform.right * curMovementInput.x;
+            dir = dir.normalized * dashSpeed;
+            dir.y = _rigidbody.velocity.y;
+
+            _rigidbody.velocity = dir;
+            
+            uiCondition.stamina.Add(-5);
         }
     }
 
