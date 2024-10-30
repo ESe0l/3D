@@ -1,6 +1,4 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -8,8 +6,8 @@ public class PlayerController : MonoBehaviour
 {
     [Header("Movement")]
     public float moveSpeed;
-    public bool isRunning;
     public float dashSpeed;
+    public bool isRunning;
     public Rigidbody rb;
     public float jumpPower;
     private Vector2 curMovementInput;
@@ -22,20 +20,21 @@ public class PlayerController : MonoBehaviour
     private float camCurXRot;
     public float lookSensitivity;
     private Vector2 mouseDelta;
-    
+    public bool canLook = true;
+
+    public Action inventory;
     private Rigidbody _rigidbody;
-    private UICondition uiCondition;
+    public UICondition uiCondition;
 
     private void Awake()
     {
         _rigidbody = GetComponent<Rigidbody>();
     }
 
-    // Start is called before the first frame update
+    //Start is called before the first frame update
     void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;
-        uiCondition = GetComponent<UICondition>();
     }
 
     // Update is called once per frame
@@ -46,6 +45,10 @@ public class PlayerController : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (canLook)
+        {
+            CameraLook();
+        }
         CameraLook();
     }
 
@@ -56,10 +59,26 @@ public class PlayerController : MonoBehaviour
         dir.y = _rigidbody.velocity.y;
         
          _rigidbody.velocity = dir;
-         
-         isRunning = curMovementInput.magnitude > 0 && uiCondition.stamina.curValue > 0;
     }
-
+    
+    void Dash()
+    {
+        if (!isRunning && uiCondition.stamina.curValue > 0)
+        {
+            isRunning = true;
+            Vector3 dir = transform.forward * curMovementInput.y + transform.right * curMovementInput.x;
+            dir *= dashSpeed;
+            dir.y = _rigidbody.velocity.y;
+        
+            _rigidbody.velocity = dir;
+        
+            if (uiCondition.stamina.curValue <= 0)
+            {
+                isRunning = false;
+            }
+        }
+    }
+    
     void CameraLook()
     {
         camCurXRot += mouseDelta.y * lookSensitivity;
@@ -83,15 +102,13 @@ public class PlayerController : MonoBehaviour
 
     public void OnDash(InputAction.CallbackContext context)
     {
-        if (context.phase == InputActionPhase.Performed && isRunning && uiCondition.stamina.curValue > 5) // Ensure enough stamina for dash
+        if (context.phase == InputActionPhase.Performed)
         {
-            Vector3 dir = transform.forward * curMovementInput.y + transform.right * curMovementInput.x;
-            dir = dir.normalized * dashSpeed;
-            dir.y = _rigidbody.velocity.y;
-
-            _rigidbody.velocity = dir;
-            
-            uiCondition.stamina.Add(-5);
+            Dash();
+        }
+        else if (context.phase == InputActionPhase.Canceled)
+        {
+            isRunning = false;
         }
     }
 
@@ -126,5 +143,21 @@ public class PlayerController : MonoBehaviour
             }
         }
         return false;
+    }
+
+    public void OnInventory(InputAction.CallbackContext context)
+    {
+        if (context.phase == InputActionPhase.Started)
+        {
+            inventory?.Invoke();
+            ToggleCursor();
+        }
+    }
+
+    void ToggleCursor()
+    {
+        bool toggle  = Cursor.lockState == CursorLockMode.Locked;
+        Cursor.lockState = toggle ? CursorLockMode.None : CursorLockMode.Locked;
+        canLook = !toggle;
     }
 }
